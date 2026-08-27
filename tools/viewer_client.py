@@ -65,6 +65,8 @@ import numpy as np  # noqa: E402
 import websockets  # noqa: E402
 
 from vr_teleop_kit.ik.model import build_model_with_tool0_site  # noqa: E402
+from vr_teleop_kit.ik.so101_model import DEFAULT_Q_REST as SO101_Q_REST  # noqa: E402
+from vr_teleop_kit.ik.so101_model import build_so101_model  # noqa: E402
 
 DEFAULT_URL = "ws://127.0.0.1:8443/ws"
 
@@ -131,17 +133,25 @@ def main() -> None:
                     help="only render ik_state from this teleop id (for running "
                          "several teleops against one relay side by side).")
     ap.add_argument("--urdf", default=None,
-                    help="path to the DK1 follower URDF (default: DK1_URDF env var).")
+                    help="path to the follower URDF (default: DK1_URDF or "
+                         "SO101_URDF env var, per --robot).")
+    ap.add_argument("--robot", choices=("dk1", "so101"), default="dk1",
+                    help="which arm model to render (dk1 = TRLC-DK1, "
+                         "so101 = SO-ARM101).")
     args = ap.parse_args()
     qpos_key = f"{args.arm}_qpos"
 
-    model, data = build_model_with_tool0_site(args.urdf)
-
-    # Start at home pose so the viewer has something to show before any
-    # ik_state arrives.
-    data.qpos[:] = 0
-    data.qpos[1] = np.pi / 2
-    data.qpos[2] = np.pi / 2
+    # Start at the arm's home pose so the viewer has something to show
+    # before any ik_state arrives.
+    if args.robot == "so101":
+        model, data = build_so101_model(args.urdf)
+        data.qpos[:] = 0
+        data.qpos[: len(SO101_Q_REST)] = SO101_Q_REST
+    else:
+        model, data = build_model_with_tool0_site(args.urdf)
+        data.qpos[:] = 0
+        data.qpos[1] = np.pi / 2
+        data.qpos[2] = np.pi / 2
     mujoco.mj_forward(model, data)
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
