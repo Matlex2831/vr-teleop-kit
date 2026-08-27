@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Data &amp; Training</title>
+  <style>
+    /* Same palette as the teleop launcher (index.html) — this is a second
+       page of one tool, not a second tool. */
+    :root {
+      --bg: #0f1115; --surface: #181b22; --surface-2: #20242d;
+      --text: #e6e8ec; --muted: #8b919e; --border: #2a2e38;
+      --accent: #4f8cff; --accent-hi: #6ba0ff;
+      --ok: #3fb950; --warn: #d29922; --err: #f85149;
+      --j0: #4f8cff; --j1: #3fb950; --j2: #d29922; --j3: #bc8cff; --j4: #39c5cf;
+      --grip: #f85149;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.5; min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    button { font: inherit; cursor: pointer; transition: background .15s, color .15s, opacity .15s; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    a { color: var(--accent-hi); }
+    h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+    /* ---------- top bar ---------- */
+    .topbar {
+      display: flex; align-items: center; gap: 1rem;
+      padding: .6rem 1rem; background: var(--surface);
+      border-bottom: 1px solid var(--border); flex: none; flex-wrap: wrap;
+    }
+    .brand { font-weight: 600; letter-spacing: -.01em; }
+    .tabs { display: flex; gap: .2rem; }
+    .tabs button {
+      background: transparent; border: none; color: var(--muted);
+      padding: .4rem .8rem; border-radius: 8px; font-size: .92rem;
+    }
+    .tabs button:hover { color: var(--text); background: var(--surface-2); }
+    .tabs button.active { color: var(--text); background: var(--surface-2); }
+    .spacer { flex: 1; }
+    .chips { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .2rem .6rem; border-radius: 999px; background: var(--surface-2);
+      font-size: .78rem; color: var(--muted); white-space: nowrap;
+    }
+    .chip b { color: var(--text); font-weight: 500; }
+    .chip.warn { color: #f0c674; }
+    .back { color: var(--muted); text-decoration: none; font-size: .9rem; padding: .3rem .5rem; border-radius: 8px; }
+    .back:hover { color: var(--text); background: var(--surface-2); }
+
+    main { flex: 1; min-height: 0; display: flex; }
+    .view { display: none; flex: 1; min-width: 0; flex-direction: column; }
+    .view.active { display: flex; }
+
+    /* ---------- buttons ---------- */
+    .btn {
+      padding: .45rem .8rem; font-size: .88rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    }
+    .btn:hover:not(:disabled) { background: var(--border); }
+    .btn-accent { background: rgba(79,140,255,.15); border-color: rgba(79,140,255,.4); color: var(--accent-hi); }
+    .btn-accent:hover:not(:disabled) { background: rgba(79,140,255,.28); }
+    .btn-danger { background: rgba(248,81,73,.08); border-color: rgba(248,81,73,.32); color: #ff958e; }
+    .btn-danger:hover:not(:disabled) { background: rgba(248,81,73,.18); }
+    .btn-sm { padding: .22rem .55rem; font-size: .78rem; border-radius: 6px; }
+
+    /* ---------- datasets ---------- */
+    .pad { padding: 1.1rem 1.2rem; overflow-y: auto; }
+    .grid { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: .9rem 1rem; cursor: pointer;
+      display: flex; flex-direction: column; gap: .5rem;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card.backup { opacity: .55; }
+    .card-head { display: flex; align-items: flex-start; gap: .5rem; }
+    .card-head .card-title { flex: 1; min-width: 0; }
+    /* Card actions stay muted until the card is hovered: rename and
+       delete should be reachable, not competing with the dataset name. */
+    .card-actions { display: flex; gap: .25rem; opacity: .25; transition: opacity .15s; }
+    .card:hover .card-actions, .card-actions:focus-within { opacity: 1; }
+    .card-actions button {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      font-size: .7rem; padding: .1rem .4rem; border-radius: 5px;
+    }
+    .card-actions button:hover { color: var(--text); background: var(--surface-2); }
+    .card-actions button.danger:hover { color: #ff958e; border-color: rgba(248,81,73,.4); }
+    .cam-row { display: flex; gap: .4rem; align-items: center; }
+    .cam-row input.cam-name { width: 7rem; flex: none; }
+    .cam-row select { flex: 1; min-width: 0; }
+    .cam-row button { flex: none; }
+    .session-controls { display: flex; gap: .4rem; flex-wrap: wrap; margin: .2rem 0 .4rem; }
+    .session-controls .btn { font-size: .85rem; }
+    .card-title { font-weight: 600; word-break: break-all; font-size: .95rem; }
+    .card-task { color: var(--muted); font-size: .85rem; }
+    .card-stats { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
+    .card-stats b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
+    .bar i { display: block; height: 100%; }
+    .bar .keep { background: var(--ok); } .bar .reject { background: var(--err); } .bar .unset { background: var(--border); }
+    .empty { color: var(--muted); padding: 2rem 0; text-align: center; }
+
+    /* ---------- review ---------- */
+    .head {
+      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+      padding: .7rem 1.2rem; border-bottom: 1px solid var(--border); flex: none;
+    }
+    .head .sub { color: var(--muted); font-size: .82rem; }
+    .head-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .banner {
+      display: none; margin: .7rem 1.2rem 0; padding: .6rem .8rem;
+      border-radius: 8px; font-size: .85rem;
+      background: rgba(210,153,34,.12); border: 1px solid rgba(210,153,34,.35); color: #f0c674;
+    }
+    .banner.show { display: block; }
+    .banner.err { background: rgba(248,81,73,.1); border-color: rgba(248,81,73,.35); color: #ff958e; }
+
+    .split { flex: 1; min-height: 0; display: flex; gap: 0; }
+    .left { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 1rem 1.2rem; gap: .7rem; overflow-y: auto; }
+    .right { width: 26rem; max-width: 42vw; border-left: 1px solid var(--border); overflow-y: auto; background: var(--surface); }
+
+    /* Cap the frame by HEIGHT, not width: a 4:3 video across a wide
+       column is 800px tall and pushes the traces — the other half of the
+       judgement — off screen. */
+    .player {
+      background: #000; border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; align-self: center;
+      width: min(100%, calc(38vh * 4 / 3)); flex: none;
+    }
+    .player video { width: 100%; display: block; aspect-ratio: 4/3; object-fit: contain; background: #000; }
+    .player-bar { display: flex; align-items: center; gap: .6rem; padding: .45rem .6rem; background: var(--surface); }
+    .scrub { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); position: relative; cursor: pointer; }
+    .scrub i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; width: 0; }
+    .time { font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5rem; text-align: right; }
+    .icon-btn { background: transparent; border: none; color: var(--text); font-size: 1rem; padding: .1rem .45rem; border-radius: 6px; }
+    .icon-btn:hover { background: var(--surface-2); }
+    /* Speed readout doubles as its own button — tabular digits so the bar
+       does not shift width as the rate cycles. */
+    .icon-btn.rate {
+      font-size: .78rem; font-variant-numeric: tabular-nums;
+      min-width: 2.6rem; color: var(--muted); border: 1px solid var(--border);
+    }
+    .icon-btn.rate:hover { color: var(--text); }
+    .icon-btn.rate.fast { color: var(--accent-hi); border-color: rgba(79,140,255,.4); }
+
+    .chart { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .5rem .6rem .2rem; }
+    .chart-head { display: flex; align-items: baseline; gap: .6rem; font-size: .8rem; color: var(--muted); margin-bottom: .1rem; flex-wrap: wrap; }
+    .chart-head b { color: var(--text); font-weight: 500; font-size: .84rem; }
+    .legend { display: flex; gap: .5rem; flex-wrap: wrap; margin-left: auto; }
+    .legend span { display: inline-flex; align-items: center; gap: .25rem; font-size: .72rem; }
+    .legend i { width: 9px; height: 2.5px; border-radius: 2px; display: inline-block; }
+    .chart svg { display: block; width: 100%; height: auto; }
+
+    /* ---------- episode list ---------- */
+    .ep { padding: .6rem .8rem; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; flex-direction: column; gap: .35rem; }
+    .ep:hover { background: var(--surface-2); }
+    .ep.sel { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+    .ep.rejected .ep-title, .ep.rejected .ep-why { text-decoration: line-through; opacity: .55; }
+    /* A mark whose episode changed underneath it — the row, not the whole
+       dataset, is what needs a second look. */
+    .ep.stale { box-shadow: inset 3px 0 0 var(--err); }
+    .ep.stale .ep-title::after {
+      content: " mark may be stale"; color: #ff958e; font-weight: 400; font-size: .72rem;
+    }
+    .ep-row { display: flex; align-items: center; gap: .5rem; }
+    .ep-title { font-size: .9rem; font-weight: 500; }
+    .ep-idx { color: var(--muted); font-weight: 400; font-size: .78rem; }
+    .ep-meta { color: var(--muted); font-size: .78rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+    .tag { padding: .05rem .4rem; border-radius: 5px; font-size: .68rem; font-weight: 600; letter-spacing: .02em; }
+    .tag.PASS { background: rgba(63,185,80,.16); color: #7ee787; }
+    .tag.SUSPECT { background: rgba(210,153,34,.16); color: #f0c674; }
+    .tag.FAIL { background: rgba(248,81,73,.16); color: #ff958e; }
+    .tag.val { background: rgba(79,140,255,.16); color: var(--accent-hi); }
+    .ep-why { color: var(--muted); font-size: .78rem; }
+    .ep-actions { display: flex; gap: .3rem; align-items: center; }
+    .mark { padding: .18rem .5rem; font-size: .75rem; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted); }
+    .mark:hover { color: var(--text); }
+    .mark.on-keep { background: rgba(63,185,80,.18); border-color: rgba(63,185,80,.4); color: #7ee787; }
+    .mark.on-reject { background: rgba(248,81,73,.16); border-color: rgba(248,81,73,.4); color: #ff958e; }
+    .note-input {
+      flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: .18rem .4rem; font-size: .75rem; font-family: inherit;
+    }
+    .note-input::placeholder { color: #5c6270; }
+
+    /* ---------- forms ---------- */
+    .form { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+    .field { display: flex; flex-direction: column; gap: .2rem; }
+    .field label { font-size: .78rem; color: var(--muted); }
+    .field input, .field select {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: .4rem .5rem; font: inherit; font-size: .88rem; min-width: 0;
+    }
+    .field .hint { font-size: .72rem; color: #5c6270; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .8rem; }
+    .panel h3 { margin: 0; font-size: .95rem; font-weight: 600; }
+    .panel .note { color: var(--muted); font-size: .82rem; }
+
+    /* ---------- runs ---------- */
+    .runs { display: flex; flex-direction: column; gap: .4rem; }
+    .run { display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+    .run:hover { border-color: var(--accent); }
+    .run.sel { border-color: var(--accent); }
+    .run-name { font-size: .87rem; font-weight: 500; }
+    .run-meta { color: var(--muted); font-size: .77rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+    .st { padding: .08rem .45rem; border-radius: 5px; font-size: .68rem; font-weight: 600; }
+    .st.running { background: rgba(79,140,255,.18); color: var(--accent-hi); }
+    .st.done { background: rgba(63,185,80,.16); color: #7ee787; }
+    .st.failed, .st.died, .st.launch_failed { background: rgba(248,81,73,.16); color: #ff958e; }
+    .st.stopped { background: rgba(210,153,34,.16); color: #f0c674; }
+    #run-log {
+      background: #0b0d12; border: 1px solid var(--border); border-radius: 8px;
+      padding: .5rem .65rem; font-family: ui-monospace, Menlo, monospace; font-size: .73rem;
+      color: var(--muted); white-space: pre-wrap; overflow-y: auto; height: 15rem; margin: 0;
+    }
+
+    /* ---------- modal ---------- */
+    .modal { display: none; position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.6); align-items: center; justify-content: center; padding: 1rem; }
+    .modal.show { display: flex; }
+    .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.3rem; width: 100%; max-width: 34rem; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; gap: .8rem; }
+    .modal-card h3 { margin: 0; font-size: 1.05rem; }
+    .modal-card .warn-box { background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.3); color: #f0c674; border-radius: 8px; padding: .6rem .75rem; font-size: .83rem; }
+    .modal-card .warn-box.err { background: rgba(248,81,73,.1); border-color: rgba(248,81,73,.35); color: #ff958e; }
+    .modal-card ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+    .btn-row { display: flex; gap: .5rem; justify-content: flex-end; }
+
+    /* ---------- toast ---------- */
+    #toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; gap: .4rem; align-items: center; pointer-events: none; }
+    .toast { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .8rem; font-size: .85rem; max-width: 40rem; }
+    .toast.err { border-color: rgba(248,81,73,.5); color: #ff958e; }
+    .toast.ok { border-color: rgba(63,185,80,.45); color: #7ee787; }
+
+    .kbd-hint { color: #5c6270; font-size: .74rem; }
+    kbd { background: var(--surface-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 .28rem; font-size: .72rem; font-family: inherit; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">Data &amp; Training</span>
+    <nav class="tabs">
+      <button data-view="datasets" class="active">Datasets</button>
+      <button data-view="review" disabled>Review</button>
+      <button data-view="train">Train</button>
+    </nav>
+    <span class="spacer"></span>
+    <div class="chips" id="env-chips"></div>
+    <a class="back" href="/">← Teleop</a>
+  </header>
+
+  <main>
+    <!-- ══ Datasets ══ -->
+    <section class="view active pad" id="view-datasets">
+      <div class="head" style="padding:0 0 .7rem;border:none">
+        <h2>Recorded datasets</h2>
+        <span class="sub" id="ds-sub"></span>
+        <span class="spacer"></span>
+        <button class="btn btn-sm btn-accent" id="ds-record">● Record episodes…</button>
+        <button class="btn btn-sm" id="ds-refresh">Refresh</button>
+      </div>
+      <div class="banner" id="ds-banner" style="margin-left:0;margin-right:0"></div>
+      <div class="grid" id="ds-grid"></div>
+    </section>
+
+    <!-- ══ Review ══ -->
+    <section class="view" id="view-review">
+      <div class="head">
+        <h2 id="rv-title">—</h2>
+        <span class="sub" id="rv-sub"></span>
+        <span class="spacer"></span>
+        <div class="head-actions">
+          <button class="btn btn-sm" id="rv-auto" title="Reject every episode the heuristics call FAIL. SUSPECT ones are left for you to judge.">Auto-grade</button>
+          <button class="btn btn-sm" id="rv-clear">Reset marks</button>
+          <button class="btn btn-sm" id="rv-export">Export pruned copy…</button>
+          <button class="btn btn-sm btn-danger" id="rv-delete"
+                  title="Rewrite this dataset without the rejected episodes.">Delete rejected…</button>
+          <button class="btn btn-sm btn-accent" id="rv-train">Train on kept →</button>
+        </div>
+      </div>
+      <div class="banner" id="rv-banner"></div>
+      <div class="split">
+        <div class="left">
+          <div class="player">
+            <video id="rv-video" preload="metadata" playsinline></video>
+            <div class="player-bar">
+              <button class="icon-btn" id="rv-play" title="Play/pause (space)">▶</button>
+              <div class="scrub" id="rv-scrub"><i id="rv-scrub-fill"></i></div>
+              <span class="time" id="rv-time">0.0 / 0.0 s</span>
+              <button class="icon-btn rate" id="rv-rate"
+                      title="Playback speed — click to cycle, [ and ] to step">1&times;</button>
+            </div>
+          </div>
+          <div class="chart">
+            <div class="chart-head">
+              <b>Gripper</b>
+              <span>0 = closed, 100 = open</span>
+              <span class="legend">
+                <span><i style="background:var(--grip)"></i>measured</span>
+                <span><i style="background:#5c6270"></i>closed / open thresholds</span>
+              </span>
+            </div>
+            <svg id="rv-chart-grip" viewBox="0 0 800 130"></svg>
+          </div>
+          <div class="chart">
+            <div class="chart-head">
+              <b>Arm joints</b>
+              <span>degrees</span>
+              <span class="legend" id="rv-joint-legend"></span>
+            </div>
+            <svg id="rv-chart-joints" viewBox="0 0 800 170"></svg>
+          </div>
+          <div class="kbd-hint">
+            <kbd>space</kbd> play/pause · <kbd>J</kbd>/<kbd>L</kbd> prev/next episode ·
+            <kbd>K</kbd> keep · <kbd>R</kbd> reject · <kbd>[</kbd>/<kbd>]</kbd> speed
+          </div>
+        </div>
+        <ol class="right" id="rv-list" style="margin:0;padding:0;list-style:none"></ol>
+      </div>
+    </section>
+
+    <!-- ══ Train ══ -->
+    <section class="view" id="view-train">
+      <div class="split">
+        <div class="left" style="max-width:34rem;border-right:1px solid var(--border)">
+          <div class="panel">
+            <h3>New training run</h3>
+            <div class="field">
+              <label for="tr-dataset">Dataset</label>
+              <select id="tr-dataset"></select>
+              <span class="hint" id="tr-dataset-hint"></span>
+            </div>
+            <div class="form">
+              <div class="field">
+                <label for="tr-policy">Policy</label>
+                <select id="tr-policy">
+                  <option value="act" selected>ACT</option>
+                  <option value="diffusion">Diffusion Policy</option>
+                  <option value="smolvla">SmolVLA</option>
+                  <option value="pi0">Pi0</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="tr-steps">Steps</label>
+                <input id="tr-steps" type="number" min="1" step="1000" value="20000">
+              </div>
+              <div class="field">
+                <label for="tr-batch">Batch size</label>
+                <input id="tr-batch" type="number" min="1" value="8">
+              </div>
+              <div class="field">
+                <label for="tr-eval-split">Eval split</label>
+                <input id="tr-eval-split" type="number" min="0" max="0.9" step="0.05" value="0.2">
+                <span class="hint">held-out episodes</span>
+              </div>
+              <div class="field">
+                <label for="tr-eval-steps">Eval every</label>
+                <input id="tr-eval-steps" type="number" min="0" step="100" value="1000">
+                <span class="hint">steps (0 = off)</span>
+              </div>
+              <div class="field">
+                <label for="tr-max-eval">Eval sample cap</label>
+                <input id="tr-max-eval" type="number" min="0" step="100" value="1000">
+                <span class="hint">frames per eval pass (0 = all)</span>
+              </div>
+              <div class="field">
+                <label for="tr-eval-mode">Held-out episodes</label>
+                <select id="tr-eval-mode">
+                  <option value="random" selected>random sample</option>
+                  <option value="recent">most recent</option>
+                </select>
+                <span class="hint">how the eval set is chosen</span>
+              </div>
+              <div class="field">
+                <label for="tr-eval-seed">Split seed</label>
+                <span class="param-val-row" style="display:flex;gap:.3rem">
+                  <input id="tr-eval-seed" type="number" min="0" value="42" style="flex:1;min-width:0">
+                  <button class="btn btn-sm" id="tr-reshuffle" type="button"
+                          title="Draw a different held-out sample">↻</button>
+                </span>
+                <span class="hint">same seed = same split</span>
+              </div>
+              <div class="field">
+                <label for="tr-save-freq">Save every</label>
+                <input id="tr-save-freq" type="number" min="0" step="1000" value="5000">
+                <span class="hint">steps</span>
+              </div>
+              <div class="field">
+                <label for="tr-workers">Dataloader workers</label>
+                <input id="tr-workers" type="number" min="0" max="32" value="4">
+              </div>
+              <div class="field">
+                <label for="tr-device">Device</label>
+                <select id="tr-device"><option value="cuda" selected>cuda</option><option value="cpu">cpu</option></select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="tr-job">Job name</label>
+              <input id="tr-job" type="text" placeholder="act_so101">
+            </div>
+            <p class="note" id="tr-summary"></p>
+            <div class="btn-row">
+              <button class="btn btn-accent" id="tr-launch">Start training</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>Runs</h3>
+            <div class="runs" id="run-list"></div>
+          </div>
+        </div>
+
+        <div class="left" id="run-detail">
+          <p class="empty">Select a run to see its curves and log.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="modal-card" id="modal-card"></div>
+  </div>
+  <div id="toast"></div>
+
+  <script src="/static/data.js?v=9"></script>
+</body>
+</html>

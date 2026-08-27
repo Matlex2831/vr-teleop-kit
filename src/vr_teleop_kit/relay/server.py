@@ -61,6 +61,11 @@ RELAY_TYPES = {
     "xr_frame", "ik_state", "config_update", "request_settings",
     # Web UI ↔ teleop: gripper-haptic threshold calibration.
     "haptic_calibrate", "haptic_calibrate_result",
+    # Web UI → recorder: episode control from the /data page, mirroring
+    # the Quest's B/Y buttons. A session started from the browser has no
+    # terminal, so this is the only clean way to end it — killing the
+    # process would lose the episode in progress.
+    "record_control",
 }
 
 
@@ -288,7 +293,10 @@ async def _no_cache_static(request, call_next):
     have to clear the Quest's cache after every web-asset change."""
     response = await call_next(request)
     p = request.url.path
-    if p == "/" or p.startswith("/static/"):
+    # Every page and asset, not just the launcher: a cached /data meant a
+    # newly added form field simply did not appear, with nothing to
+    # suggest the page was stale.
+    if p in ("/", "/data") or p.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -298,6 +306,14 @@ async def _no_cache_static(request, call_next):
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html", media_type="text/html")
+
+
+@app.get("/data")
+async def data_page() -> FileResponse:
+    """Dataset review + training page. Served from the same process as
+    the teleop relay so there is one thing to start, but it shares
+    nothing with the WebXR path — see vr_teleop_kit/data/api.py."""
+    return FileResponse(WEB_DIR / "data.html", media_type="text/html")
 
 
 # ── WebRTC signaling ─────────────────────────────────────────────────────
@@ -454,6 +470,19 @@ async def ws_handler(websocket: WebSocket) -> None:
         _clients.pop(websocket, None)
 
 
+# Dataset review + training API (/api/...). Imported here rather than at
+# the top of the module so a missing pandas/pyarrow degrades to "the
+# /data page cannot list datasets" instead of taking the teleop relay
+# down with an ImportError.
+try:
+    from ..data import api as data_api
+    app.include_router(data_api.router)
+except Exception:  # pragma: no cover - optional extra
+    data_api = None
+    logger.warning("data API unavailable (install vr-teleop-kit[dataui]): /data will not work",
+                   exc_info=True)
+
+
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
@@ -464,7 +493,18 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8443)
     ap.add_argument("--ssl-keyfile",  default=None, help="Path to TLS private key (PEM).")
     ap.add_argument("--ssl-certfile", default=None, help="Path to TLS cert chain (PEM).")
+    ap.add_argument("--allow-remote-control", action="store_true",
+                    help="Let non-loopback clients launch training/rollout jobs from the "
+                         "/data page. Off by default: --host 0.0.0.0 is documented for "
+                         "Quest access, and reaching the relay should not also mean being "
+                         "able to start a job or drive the arm.")
     args = ap.parse_args()
+
+    if data_api is not None:
+        data_api.set_allow_remote_control(args.allow_remote_control)
+        if args.allow_remote_control:
+            logger.warning("remote control ENABLED: any client that can reach this relay "
+                           "can launch training runs and move the arm")
 
     import uvicorn
     uvicorn.run(

@@ -62,6 +62,7 @@
       font-size: 0.95rem; padding: 0.5rem 0.85rem; border-radius: 8px;
     }
     .link:hover:not(:disabled) { color: var(--text); background: var(--surface-2); }
+    a.link { text-decoration: none; display: inline-flex; align-items: center; }
     .link.active { color: var(--text); background: var(--surface-2); }
 
     /* ---------- Debug rail (right, hidden by default) ---------- */
@@ -252,6 +253,10 @@
       <button class="link" id="settings-link">Settings</button>
       <button class="link" id="recalib-link">Calibrate wrist</button>
       <button class="link" id="debug-link">Debug</button>
+      <!-- Desktop workflow: review recorded episodes, launch training.
+           A plain link, not a modal — it is a separate page with nothing
+           in common with the WebXR path. -->
+      <a class="link" href="/data" id="data-link">Data &amp; training</a>
     </div>
     <!-- Camera overlay. Populated from the server's camera_list message. -->
     <div id="cam-overlay" class="cam-overlay" aria-label="Camera previews"></div>
@@ -517,6 +522,6 @@
   <canvas id="xr-canvas"></canvas>
 
   <!-- bump v= to force the Quest browser to refetch the JS after a change -->
-  <script src="/static/client.js?v=36"></script>
+  <script src="/static/client.js?v=37"></script>
 </body>
 </html>

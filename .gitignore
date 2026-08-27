@@ -9,3 +9,12 @@ __pycache__/
 dist/
 build/
 .DS_Store
+
+# Training/rollout run directories written by the /data page (logs,
+# metrics, checkpoints). Reproducible artefacts, often gigabytes.
+outputs/
+
+# Per-dataset review marks live next to the dataset in $HF_LEROBOT_HOME,
+# not in the repo — listed here only so a dataset symlinked into the
+# tree cannot drag one in.
+review.json
