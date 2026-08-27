@@ -1,11 +1,14 @@
 [project]
 name = "vr-teleop-kit"
 version = "0.1.0"
-description = "WebXR (Meta Quest) teleoperation kit for robot manipulators: WebSocket relay, clutch-relative pose mapping with reach limits, per-robot IK (TRLC-DK1 included), and a LeRobot Teleoperator adapter"
+description = "WebXR (Meta Quest) teleoperation kit for robot manipulators: WebSocket relay, clutch-relative pose mapping with reach limits, per-robot IK (TRLC-DK1 and SO-101), a LeRobot Teleoperator adapter, and a browser UI for recording demonstrations and training ACT"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-authors = [{ name = "Aurel Arnold", email = "aurel@dream-machines.eu" }]
+authors = [
+    { name = "Aurel Arnold", email = "aurel@dream-machines.eu" },
+    { name = "Oscar Devos", email = "oscar.devos02@gmail.com" },
+]
 keywords = ["teleoperation", "webxr", "quest", "robotics", "lerobot", "inverse-kinematics"]
 dependencies = [
     "numpy>=1.26",
@@ -24,13 +27,38 @@ relay = [
 ]
 # The LeRobot Teleoperator adapter (examples additionally need the DK1
 # driver — see the README, it installs from the trlc-dk1 repository).
+# Pinned: the recording and training paths call LeRobot APIs that moved
+# between releases, so an unpinned install silently gets a version this
+# kit was never run against.
 lerobot = [
-    "lerobot",
+    "lerobot==0.6.1",
+]
+# SO-101 follower support (LeRobot's Feetech bus driver). The URDF comes
+# from the SO-ARM100 repository — see the README.
+so101 = [
+    "lerobot[feetech]==0.6.1",
+]
+# The /data page: dataset review + training launcher in the relay's web
+# UI. Only what the SERVER needs to read datasets — training itself runs
+# in a subprocess, which is where lerobot and torch are imported, so the
+# relay never pays for them.
+dataui = [
+    "pandas>=2.0",
+    "pyarrow>=15",
+]
+# Demonstration recording + ACT training (examples/record_so101.py).
+# `intelrealsense` is not optional in practice if you record from a
+# RealSense: its v4l2/UYVY path decodes dark and magenta, so the native
+# librealsense driver is what produces usable training images.
+so101-data = [
+    "lerobot[feetech,core_scripts,training,intelrealsense]==0.6.1",
 ]
 
 [project.urls]
-Repository = "https://github.com/Dream-Machines-Robotics/vr-teleop-kit"
+Repository = "https://github.com/oscardvs/vr-teleop-kit"
+Upstream = "https://github.com/Dream-Machines-Robotics/vr-teleop-kit"
 "DK1 driver + URDF" = "https://github.com/robot-learning-co/trlc-dk1"
+"SO-101 URDF" = "https://github.com/TheRobotStudio/SO-ARM100"
 
 [project.scripts]
 vr-teleop-relay = "vr_teleop_kit.relay.server:main"
