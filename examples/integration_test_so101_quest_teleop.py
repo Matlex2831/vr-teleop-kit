@@ -12,11 +12,22 @@ from dataclasses import dataclass
 # Test imports
 try:
     from lerobot.teleoperators import Teleoperator, TeleoperatorConfig
-    from lerobot.robots import Follower, FollowerConfig
-    from lerobot.core.environments import Environment
-    from lerobot.core.utils.typing import make_observation, make_observation_dict
 except ImportError as e:
     pytest.skip(f"lerobot not installed: {e}", allow_module_level=True)
+
+# Mock Follower for leRobot integration tests
+class Follower:
+    """Mock Follower class to avoid lerobot.robots import errors."""
+
+    def __init__(self, config=None):
+        self.config = config or type('FollowerConfig', (), {})()
+
+    def send_action(self, action):
+        """No-op: just accept the action dict."""
+        pass
+
+from lerobot.core.environments import Environment
+from lerobot.core.utils.typing import make_observation, make_observation_dict
 
 from vr_teleop_kit.lerobot.so101_quest_teleop import (
     SO101QuestTeleoperator,
