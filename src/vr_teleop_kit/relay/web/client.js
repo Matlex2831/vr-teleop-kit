@@ -1427,17 +1427,11 @@
       const posOut = [
         rawPos[0] + offsetWorld[0],
         rawPos[1] + offsetWorld[1],
-        rawPos[2] + offsetWorld[2],
-      ];
-      // Capture raw (un-shifted) pose samples for the pivot solver.
-      if (calibrating && calibBuffers[src.handedness]) {
-        calibBuffers[src.handedness].push({ p: rawPos, R: quatToMat3(orient) });
-      }
       controllers[src.handedness] = {
         position: posOut,
-        orientation: orient,
+        orientation: orient, 
         buttons: gp ? gp.buttons.map((b) => ({ p: b.pressed, t: b.touched, v: b.value })) : [],
-        axes:    gp ? Array.from(gp.axes) : [],
+        axes:    gp ? { x: gp.axes[2] || 0, y: gp.axes[3] || 0 } : {},
       };
     }
 

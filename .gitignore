@@ -18,3 +18,4 @@ outputs/
 # not in the repo — listed here only so a dataset symlinked into the
 # tree cannot drag one in.
 review.json
+plan.md

@@ -518,6 +518,11 @@ class SO101QuestTeleoperator(Teleoperator):
         # LeRobot gripper convention: 0..100, 0 = closed. Trigger is 0..1
         # with 1 = squeezed = closed.
         out["gripper.pos"] = float(np.clip((1.0 - arm["trigger"]) * 100.0, 0.0, 100.0))
+        
+        # Add body velocity commands if available
+        if hasattr(self, "_last_body_vels") and self._last_body_vels:
+            out.update(self._last_body_vels)
+        
         return out
 
     def _anchor_mapper(
@@ -569,8 +574,8 @@ class SO101QuestTeleoperator(Teleoperator):
             q_in = quat_raw if np.dot(arm["quat_filt"], quat_raw) >= 0.0 else -quat_raw
             qf = (1.0 - alpha) * arm["quat_filt"] + alpha * q_in
             arm["quat_filt"] = qf / np.linalg.norm(qf)
-        pos = arm["pos_filt"]
-        quat_wxyz = arm["quat_filt"]
+            pos = arm["pos_filt"]
+            quat_wxyz = arm["quat_filt"]
 
         buttons = ctrl.get("buttons") or []
         grip = bool(buttons[GRIP_BUTTON_INDEX]["p"]) if len(buttons) > GRIP_BUTTON_INDEX else False
@@ -581,6 +586,18 @@ class SO101QuestTeleoperator(Teleoperator):
         rest_btn = (
             bool(buttons[REST_RAMP_BUTTON_INDEX]["p"]) if len(buttons) > REST_RAMP_BUTTON_INDEX else False
         )
+        
+        # Read joystick axes for body velocity commands
+        axes = ctrl.get("axes")
+        self._last_body_vels: dict[str, float] = {}
+        if axes:
+            from ..joystick_drive import axes_to_body_vel, JoystickDriveConfig
+            config = JoystickDriveConfig()
+            # Apply precision scaling to axes
+            precision_scale = self.config.precision_factor if precision else 1.0
+            axes["x"] = axes.get("x", 0.0) * precision_scale
+            axes["y"] = axes.get("y", 0.0) * precision_scale
+            self._last_body_vels = axes_to_body_vel(axes, config)
         if rest_btn and not arm["last_rest_button"] and not arm["ramp_active"]:
             arm["ramp_start_q"] = arm["qpos"][:ARM_DOFS].copy()
             arm["ramp_target_q"] = np.asarray(self.config.rest_qpos, dtype=float)
