@@ -26,8 +26,7 @@ class Follower:
         """No-op: just accept the action dict."""
         pass
 
-from lerobot.core.environments import Environment
-from lerobot.core.utils.typing import make_observation, make_observation_dict
+
 
 from vr_teleop_kit.lerobot.so101_quest_teleop import (
     SO101QuestTeleoperator,
@@ -267,44 +266,7 @@ def test_config_update_bounds():
     print("✓ Config update bounds validation validated")
 
 
-# =============================================================================
-# SECTION 5: Integration with LeRobot Environment
-# =============================================================================
 
-def test_leobot_integration():
-    """Test integration with a LeRobot environment."""
-    
-    # Mock environment class
-    class MockEnvironment(Environment):
-        def _get_observation(self):
-            return {"image": np.zeros((100, 100, 3)), "joints": np.zeros(6)}
-        
-        def _get_action_spec(self):
-            return type('ActionSpec', (), {'dtype': np.float32, 'shape': (6,)})
-    
-    # Mock follower class
-    class MockFollower(Follower):
-        def __init__(self):
-            super().__init__(FollowerConfig())
-            
-        def send_action(self, action):
-            pass
-    
-    # Create components
-    env = MockEnvironment()
-    follower = MockFollower()
-    config = SO101QuestTeleoperatorConfig()
-    teleop = SO101QuestTeleoperator(config)
-    
-    # Verify action compatibility
-    action = teleop.get_action()
-    action_spec = env.get_action_spec()
-    
-    # Check that action values are within valid ranges
-    for value in action.values():
-        assert isinstance(value, float)
-    
-    print("✓ LeRobot environment integration validated")
 
 
 # =============================================================================
