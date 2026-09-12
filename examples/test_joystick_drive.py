@@ -7,6 +7,7 @@ FPS = 30
 
 teleop_arm_config = SO101QuestTeleoperatorConfig(id="vr-teleop", ws_url="ws://127.0.0.1:8443/ws", urdf_path=r"C:\Users\matth\OneDrive\Documents\SO-ARM100\Simulation\SO101\so101_new_calib.urdf")
 leader_arm = SO101QuestTeleoperator(teleop_arm_config)
+leader_arm.connect()
 while True:
     t0 = time.perf_counter()
     print(t0)
