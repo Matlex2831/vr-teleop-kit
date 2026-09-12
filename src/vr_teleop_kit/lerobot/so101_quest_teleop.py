@@ -508,7 +508,10 @@ class SO101QuestTeleoperator(Teleoperator):
 
     def _build_action(self) -> dict[str, float]:
         """Solver qpos (radians, model convention) → follower action
-        (degrees + 0..100 gripper), applying the per-joint signs."""
+        (degrees + 0..100 gripper), applying the per-joint signs.
+
+        Also includes body velocity commands from joystick axes if available.
+        """
         arm = self._arm
         signs = self.config.joint_signs
         out: dict[str, float] = {
@@ -519,7 +522,7 @@ class SO101QuestTeleoperator(Teleoperator):
         # with 1 = squeezed = closed.
         out["gripper.pos"] = float(np.clip((1.0 - arm["trigger"]) * 100.0, 0.0, 100.0))
         
-        # Add body velocity commands if available
+        # Add body velocity commands from joystick (x.y, y.y, theta.vel)
         if hasattr(self, "_last_body_vels") and self._last_body_vels:
             out.update(self._last_body_vels)
         

@@ -8,28 +8,7 @@ from typing import Optional
 
 @dataclass
 class JoystickDriveConfig:
-    """Configuration for joystick→body velocity mapping.
-    
-    Attributes:
-        max_velocity: Maximum linear velocity magnitude (m/s)
-        max_angular_velocity: Maximum angular velocity (rad/s)
-        deadzone: Deadzone threshold for stick inputs
-        deadzone_multiplier: Factor to scale deadzone based on stick position
-        precision_button_index: Index of button for precision modifier
-        precision_factor:
-</think>
-
-"""Joystick-driven base velocity mapper for VR teleoperators."""
-from __future__ import annotations
-
-import math
-from dataclasses import dataclass
-from typing import Optional
-
-
-@dataclass
-class JoystickDriveConfig:
-    """Configuration for joystick→body velocity mapping.
+    """Configuration for joystick to body velocity mapping.
 
     Attributes:
         max_velocity: Maximum linear velocity magnitude (m/s)
@@ -37,14 +16,14 @@ class JoystickDriveConfig:
         deadzone: Deadzone threshold for stick inputs
         deadzone_multiplier: Factor to scale deadzone based on stick position
         precision_button_index: Index of button for precision modifier
-        precision_factor: Factor to scale velocities when precision button is pressed
+        precision_factor: Factor to scale velocities when precision button is pressed (m/s)
     """
     max_velocity: float = 1.0  # m/s
     max_angular_velocity: float = 0.5  # rad/s
     deadzone: float = 0.1
     deadzone_multiplier: float = 1.0
     precision_button_index: int = 4
-    precision_factor: float = 0.25
+    precision_factor: float = 0.25  # m/s
 
 
 class JoystickDrive:
@@ -63,7 +42,7 @@ class JoystickDrive:
         """
         self.config = config or JoystickDriveConfig()
         self._precision_mode = False
-    
+
     def _dz(self, input_val: float, deadzone: float = None, multiplier: float = 1.0) -> float:
         """Apply deadzone to input value.
 
@@ -122,7 +101,7 @@ class JoystickDrive:
         y_vel = self.config.max_velocity * y
         theta_vel = self.config.max_angular_velocity * theta
         return {
-        "x.vel": x_vel,
-        "y.vel": y_vel,
-        "theta.vel": theta_vel,
-    }
+            "x.vel": x_vel,
+            "y.vel": y_vel,
+            "theta.vel": theta_vel,
+        }
