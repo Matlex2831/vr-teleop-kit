@@ -19,7 +19,7 @@ class JoystickDriveConfig:
         precision_factor: Factor to scale velocities when precision button is pressed (m/s)
     """
     max_velocity: float = 1.0  # m/s
-    max_angular_velocity: float = 0.5  # rad/s
+    max_angular_velocity: float = 15  # rad/s
     deadzone: float = 0.1
     deadzone_multiplier: float = 1.0
     precision_button_index: int = 4
@@ -57,7 +57,7 @@ class JoystickDrive:
         dz = (deadzone or self.config.deadzone) * multiplier
         if abs(input_val) <= dz:
             return 0.0
-        return max(-input_val, input_val - dz)
+        return -input_val
 
     def axes_to_body_vel(
         self,
