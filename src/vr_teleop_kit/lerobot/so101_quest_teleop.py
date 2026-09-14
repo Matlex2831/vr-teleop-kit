@@ -525,6 +525,12 @@ class SO101QuestTeleoperator(Teleoperator):
         # Add body velocity commands from joystick (x.y, y.y, theta.vel)
         if hasattr(self, "_last_body_vels") and self._last_body_vels:
             out.update(self._last_body_vels)
+        else:
+            out.update({
+            "x.vel": 0,
+            "y.vel": 0,
+            "theta.vel": 0,
+        })
         
         return out
 
@@ -572,6 +578,8 @@ class SO101QuestTeleoperator(Teleoperator):
         if arm["pos_filt"] is None or arm["quat_filt"] is None:
             arm["pos_filt"] = pos_raw.copy()
             arm["quat_filt"] = quat_raw.copy()
+            pos = pos_raw
+            quat_wxyz = quat_raw
         else:
             arm["pos_filt"] = (1.0 - alpha) * arm["pos_filt"] + alpha * pos_raw
             q_in = quat_raw if np.dot(arm["quat_filt"], quat_raw) >= 0.0 else -quat_raw
@@ -594,13 +602,16 @@ class SO101QuestTeleoperator(Teleoperator):
         axes = ctrl.get("axes")
         self._last_body_vels: dict[str, float] = {}
         if axes:
-            from ..joystick_drive import axes_to_body_vel, JoystickDriveConfig
-            config = JoystickDriveConfig()
+            from .joystick_drive import JoystickDriveConfig, JoystickDrive
+            jd = JoystickDrive()
+            jd.__init__(JoystickDriveConfig())
             # Apply precision scaling to axes
             precision_scale = self.config.precision_factor if precision else 1.0
-            axes["x"] = axes.get("x", 0.0) * precision_scale
-            axes["y"] = axes.get("y", 0.0) * precision_scale
-            self._last_body_vels = axes_to_body_vel(axes, config)
+            # print(arm["engaged"])
+            if arm["engaged"]:
+                self._last_body_vels = jd.axes_to_body_vel(axes[3],0,axes[2],precision)
+            else:
+                self._last_body_vels = jd.axes_to_body_vel(axes[3],axes[2],0,precision)
         if rest_btn and not arm["last_rest_button"] and not arm["ramp_active"]:
             arm["ramp_start_q"] = arm["qpos"][:ARM_DOFS].copy()
             arm["ramp_target_q"] = np.asarray(self.config.rest_qpos, dtype=float)

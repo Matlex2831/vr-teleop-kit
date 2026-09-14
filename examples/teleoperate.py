@@ -46,8 +46,10 @@ def main():
     keyboard.connect()
     # arm_action = keyboard.get_action()
     # Init rerun viewer
-    init_rerun(session_name="lekiwi_teleop")
+    # init_rerun(session_name="lekiwi_teleop")
 
+    action = {}
+    # arm_action = {}
     # if not robot.is_connected or not leader_arm.is_connected or not keyboard.is_connected:
     #     raise ValueError("Robot or teleop is not connected!")
 
@@ -61,19 +63,27 @@ def main():
         # Get teleop action
         # Arm
         # arm_action = {shoulder_pan: 45.0, shoulder_lift: -20.0, elbow: -30.0, wrist_pitch: 10.0, wrist_roll: 0.0, gripper: 0.8}
-        arm_action = leader_arm.get_action()
-        arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
+        # action_in = leader_arm.get_action()
+        # arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
+        
+        # for i in action_in:
+        #     v = action_in[i]
+        #     if '.pos' in i:
+        #         action[f"arm_{i}"] = v
+        #     else:
+        #         action[i] = v
         # Keyboard
         keyboard_keys = keyboard.get_action()
         base_action = robot._from_keyboard_to_base_action(keyboard_keys)
-
-        action = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
+        action = base_action
+        # action = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
 
         # Send action to robot
+        print(action)
         _ = robot.send_action(action)
 
         # Visualize
-        log_rerun_data(observation=observation, action=action)
+        # log_rerun_data(observation=observation, action=action)
 
         precise_sleep(max(1.0 / FPS - (time.perf_counter() - t0), 0.0))
 
