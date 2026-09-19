@@ -37,6 +37,10 @@ def main():
             depth_topic="/camera/depth/image_raw",
             use_rgb=True,
             use_depth=True,
+            fps=30,
+            width=480,
+            height=640,
+            rotation=Cv2Rotation.ROTATE_180
         ),
         "wrist": OpenCVCameraConfig(
             index_or_path="/dev/video2",
@@ -49,19 +53,19 @@ def main():
     })
     # teleop_arm_config = SO100LeaderConfig(port="/dev/ttyACM0", id="arm")
 
-    teleop_arm_config = SO101QuestTeleoperatorConfig(id="vr-teleop", ws_url="wss://127.0.0.1:8443/ws")
-    keyboard_config = KeyboardTeleopConfig(id="my_laptop_keyboard")
+    teleop_arm_config = SO101QuestTeleoperatorConfig(id="vr-teleop", ws_url="ws://127.0.0.1:8443/ws")
+    # keyboard_config = KeyboardTeleopConfig(id="my_laptop_keyboard")
 
     # Initialize the robot and teleoperator
     robot = LeKiwiClient(robot_config)
     leader_arm = SO101QuestTeleoperator(teleop_arm_config)
-    keyboard = KeyboardTeleop(keyboard_config)
+    # keyboard = KeyboardTeleop(keyboard_config)
 
     # Connect to the robot and teleoperator
     # To connect you already should have this script running on LeKiwi: `python -m lerobot.robots.lekiwi.lekiwi_host --robot.id=my_awesome_kiwi`
     robot.connect()
     leader_arm.connect()
-    keyboard.connect()
+    # keyboard.connect()
     # Init rerun viewer
     init_rerun(session_name="lekiwi_teleop")
 
@@ -83,21 +87,22 @@ def main():
         # arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
         
         # Keyboard
-        keyboard_keys = keyboard.get_action()
-        keyboard_action = robot._from_keyboard_to_base_action(keyboard_keys)
+        # keyboard_keys = keyboard.get_action()
+        # keyboard_action = robot._from_keyboard_to_base_action(keyboard_keys)
 
         for i in action_in:
             v = action_in[i]
             if '.pos' in i:
                 action[f"arm_{i}"] = v
             else:
-                action[i] = max(v,keyboard_action[i])
+                # action[i] = max(v,keyboard_action[i])
+                action[i] = v
         
         # action = base_action
         # action = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
 
         # Send action to robot
-        print(action)
+        # print(action)
         _ = robot.send_action(action)
 
         # Visualize
